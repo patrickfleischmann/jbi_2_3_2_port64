@@ -243,6 +243,8 @@ BOOL verbose = FALSE;
 
 int jbi_jtag_io(int tms, int tdi, int read_tdo)
 {
+	printf("DEBUG: jbi_jtag_io called with tms=%d, tdi=%d, read_tdo=%d\n",
+		tms, tdi, read_tdo);
 	int data = 0;
 	int tdo = 0;
 	int i = 0;
@@ -258,32 +260,27 @@ int jbi_jtag_io(int tms, int tdi, int read_tdo)
 	if (specified_com_port)
 	{
 		ch_data = (char)
-			((tdi ? 0x01 : 0) | (tms ? 0x02 : 0) | 0x60);
+			((tdi ? 0x01 : 0) | (tms ? 0x02 : 0) | (read_tdo ? 0x04 : 0));
+		ch_data |= '0'; //make it an ASCII character '0' to '7'
 
 		write(com_port, &ch_data, 1);
+		printf("DEBUG: Sent char '%c' to com port\n", ch_data);
 
 		if (read_tdo)
 		{
-			ch_data = 0x7e;
-			write(com_port, &ch_data, 1);
 			for (i = 0; (i < 100) && (result != 1); ++i)
 			{
 				result = read(com_port, &ch_data, 1);
 			}
 			if (result == 1)
 			{
-				tdo = ch_data & 0x01;
+				tdo = (ch_data == '1')? 1 : 0;
 			}
 			else
 			{
-				fprintf(stderr, "Error:  BitBlaster not responding\n");
+				fprintf(stderr, "Error:  PicoBlaster not responding\n");
 			}
 		}
-
-		ch_data = (char)
-			((tdi ? 0x01 : 0) | (tms ? 0x02 : 0) | 0x64);
-
-		write(com_port, &ch_data, 1);
 	}
 	else
 	{
@@ -1677,32 +1674,7 @@ void initialize_jtag_hardware()
 		}
 		else
 		{
-			int i = 0, result = 0;
-			char data = 0;
-
-			data = 0x7e;
-			write(com_port, &data, 1);
-
-			for (i = 0; (i < 100) && (result != 1); ++i)
-			{
-				result = read(com_port, &data, 1);
-			}
-
-			if (result == 1)
-			{
-				data = 0x70; write(com_port, &data, 1); /* TDO echo off */
-				data = 0x72; write(com_port, &data, 1); /* auto LEDs off */
-				data = 0x74; write(com_port, &data, 1); /* ERROR LED off */
-				data = 0x76; write(com_port, &data, 1); /* DONE LED off */
-				data = 0x60; write(com_port, &data, 1); /* signals low */
-			}
-			else
-			{
-				fprintf(stderr, "Error: BitBlaster is not responding on %s\n",
-					serial_port_name);
-				close(com_port);
-				com_port = -1;
-			}
+			fprintf(stderr, "Debug: opened %s\n",serial_port_name);
 		}
 	}
 	else
