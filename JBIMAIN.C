@@ -1383,24 +1383,10 @@ JBI_RETURN_TYPE jbi_execute
 			*	PRINT add string
 			*	...argument 0 is string ID
 			*/
-#if PORT==DOS
-			long_index = string_table + args[0];
-			index2 = jbi_strlen(message_buffer);
-
-			do
-			{
-				i = GET_BYTE(long_index);
-				message_buffer[index2] = (char) i;
-				++long_index;
-				++index2;
-			}
-			while ((i != '\0') && (index2 < JBIC_MESSAGE_LENGTH));
-#else
 			count = jbi_strlen(message_buffer);
 			jbi_strncpy(&message_buffer[count],
 				(char *) &program[string_table + args[0]],
 				JBIC_MESSAGE_LENGTH - count);
-#endif
 			message_buffer[JBIC_MESSAGE_LENGTH] = '\0';
 			break;
 
@@ -1417,7 +1403,7 @@ JBI_RETURN_TYPE jbi_execute
 			*	STATE intermediate state
 			*	...argument 0 is state code
 			*/
-			status = jbi_goto_jtag_state((int) args[0]);
+			status = jbi_goto_jtag_state((JBIE_JTAG_STATE) args[0]);
 			break;
 
 		case 0x48: /* ST   */
@@ -1425,7 +1411,7 @@ JBI_RETURN_TYPE jbi_execute
 			*	STATE final state
 			*	...argument 0 is state code
 			*/
-			status = jbi_goto_jtag_state((int) args[0]);
+			status = jbi_goto_jtag_state((JBIE_JTAG_STATE) args[0]);
 			break;
 
 		case 0x49: /* ISTP */
