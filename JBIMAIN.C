@@ -33,6 +33,8 @@
 #include "jbijtag.h"
 #include "jbicomp.h"
 
+#include <stdint.h>
+
 /****************************************************************************/
 /*																			*/
 /*	MACROS																	*/
@@ -230,7 +232,7 @@ JBI_RETURN_TYPE jbi_execute
 	unsigned long proc_count = 0L;
 	unsigned long symbol_count = 0L;
 	char message_buffer[JBIC_MESSAGE_LENGTH + 1];
-	long *variables = NULL;
+	intptr_t *variables = NULL;
 	long *variable_size = NULL;
 	char *attributes = NULL;
 	unsigned char *proc_attributes = NULL;
@@ -239,9 +241,9 @@ JBI_RETURN_TYPE jbi_execute
 	unsigned long args[3];
 	unsigned int opcode;
 	unsigned long name_id;
-	long stack[JBI_STACK_SIZE] = {0};
+	intptr_t stack[JBI_STACK_SIZE] = {0};
 	unsigned char charbuf[4];
-	long long_temp;
+	intptr_t long_temp;
 	unsigned int variable_id;
 	unsigned char *charptr_temp;
 	unsigned char *charptr_temp2;
@@ -311,8 +313,8 @@ JBI_RETURN_TYPE jbi_execute
 
 	if ((status == JBIC_SUCCESS) && (symbol_count > 0))
 	{
-		variables = (long *) jbi_malloc(
-			(unsigned int) symbol_count * sizeof(long));
+		variables = (intptr_t *) jbi_malloc(
+			(unsigned int) symbol_count * sizeof(intptr_t));
 
 		if (variables == NULL) status = JBIC_OUT_OF_MEMORY;
 
@@ -389,7 +391,7 @@ JBI_RETURN_TYPE jbi_execute
 						&program[data_section + value]);
 
 					/* allocate a buffer for the uncompressed data */
-					variables[i] = (long) jbi_malloc(uncompressed_size);
+					variables[i] = (intptr_t) jbi_malloc(uncompressed_size);
 
 					if (variables[i] == 0L)
 					{
@@ -431,7 +433,7 @@ JBI_RETURN_TYPE jbi_execute
 						unsigned int size = (unsigned int)
 							((variable_size[i] + 7L) / 8L);
 
-						variables[i] = (long) jbi_malloc(size);
+						variables[i] = (intptr_t) jbi_malloc(size);
 
 						if (variables[i] == NULL)
 						{
@@ -452,7 +454,7 @@ JBI_RETURN_TYPE jbi_execute
 						variables[i] = 0;
 					}
 #else
-					variables[i] = value + data_section + (long) program;
+					variables[i] = (intptr_t) (program + data_section + value);
 #endif
 				}
 				else if ((attributes[i] & 0x1c) == 0x1c)
@@ -484,7 +486,7 @@ JBI_RETURN_TYPE jbi_execute
 								((variable_size[i] + 7L) / 8L);
 						}
 
-						variables[i] = (long) jbi_malloc(size);
+						variables[i] = (intptr_t) jbi_malloc(size);
 
 						if (variables[i] == NULL)
 						{
@@ -1312,7 +1314,7 @@ JBI_RETURN_TYPE jbi_execute
 			break;
 
 		case 0x40: /* PSHL */
-			stack[stack_ptr++] = (long) args[0];
+			stack[stack_ptr++] = (intptr_t) args[0];
 			break;
 
 		case 0x41: /* PSHV */
@@ -1496,7 +1498,7 @@ JBI_RETURN_TYPE jbi_execute
 					count = (unsigned int) variable_size[variable_id];
 					long_temp = variables[variable_id];
 					longptr_temp = (long *) jbi_malloc(count * sizeof(long));
-					variables[variable_id] = (long) longptr_temp;
+					variables[variable_id] = (intptr_t) longptr_temp;
 
 					if (variables[variable_id] == NULL)
 					{
@@ -1573,7 +1575,7 @@ JBI_RETURN_TYPE jbi_execute
 					long_temp = (variable_size[variable_id] + 7L) >> 3L;
 					charptr_temp2 = (unsigned char *) variables[variable_id];
 					charptr_temp = jbi_malloc((unsigned int) long_temp);
-					variables[variable_id] = (long) charptr_temp;
+					variables[variable_id] = (intptr_t) charptr_temp;
 
 					if (variables[variable_id] == NULL)
 					{
@@ -2139,7 +2141,7 @@ JBI_RETURN_TYPE jbi_execute
 					/*
 					*	Allocate a new buffer of the requested size
 					*/
-					variables[variable_id] = (long)
+					variables[variable_id] = (intptr_t)
 						jbi_malloc((unsigned int) long_temp);
 
 					if (variables[variable_id] == NULL)
@@ -2354,7 +2356,7 @@ JBI_RETURN_TYPE jbi_execute
 					long_temp = (variable_size[variable_id] + 7L) >> 3L;
 					charptr_temp2 = (unsigned char *) variables[variable_id];
 					charptr_temp = jbi_malloc((unsigned int) long_temp);
-					variables[variable_id] = (long) charptr_temp;
+					variables[variable_id] = (intptr_t) charptr_temp;
 
 					if (variables[variable_id] == NULL)
 					{
@@ -2525,7 +2527,7 @@ JBI_RETURN_TYPE jbi_execute
 					long_temp = (variable_size[variable_id] + 7L) >> 3L;
 					charptr_temp2 = (unsigned char *) variables[variable_id];
 					charptr_temp = jbi_malloc((unsigned int) long_temp);
-					variables[variable_id] = (long) charptr_temp;
+					variables[variable_id] = (intptr_t) charptr_temp;
 
 					if (variables[variable_id] == NULL)
 					{
