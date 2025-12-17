@@ -1419,7 +1419,7 @@ JBI_RETURN_TYPE jbi_execute
 			*	IRSTOP state
 			*	...argument 0 is state code
 			*/
-			status = jbi_set_irstop_state((int) args[0]);
+			status = jbi_set_irstop_state((JBIE_JTAG_STATE) args[0]);
 			break;
 
 		case 0x4A: /* DSTP */
@@ -1427,7 +1427,7 @@ JBI_RETURN_TYPE jbi_execute
 			*	DRSTOP state
 			*	...argument 0 is state code
 			*/
-			status = jbi_set_drstop_state((int) args[0]);
+			status = jbi_set_drstop_state((JBIE_JTAG_STATE)args[0]);
 			break;
 
 		case 0x4B: /* SWPN */
@@ -1568,7 +1568,7 @@ JBI_RETURN_TYPE jbi_execute
 					*/
 					long_temp = (variable_size[variable_id] + 7L) >> 3L;
 					charptr_temp2 = (unsigned char *) variables[variable_id];
-					charptr_temp = jbi_malloc((unsigned int) long_temp);
+					charptr_temp = (unsigned char*) jbi_malloc((unsigned int) long_temp);
 					variables[variable_id] = (intptr_t) charptr_temp;
 
 						if (variables[variable_id] == 0)
@@ -1832,7 +1832,7 @@ JBI_RETURN_TYPE jbi_execute
 				{
 					/* allocate a buffer and reverse the data order */
 					charptr_temp2 = charptr_temp;
-					charptr_temp = jbi_malloc((long_count >> 3) + 1);
+					charptr_temp = (unsigned char*) jbi_malloc((long_count >> 3) + 1);
 					if (charptr_temp == NULL)
 					{
 						status = JBIC_OUT_OF_MEMORY;
@@ -2223,7 +2223,7 @@ JBI_RETURN_TYPE jbi_execute
 
 				if ((long_index & 7L) != 0)
 				{
-					charptr_temp2 = jbi_malloc((unsigned int)
+					charptr_temp2 = (unsigned char*) jbi_malloc((unsigned int)
 						((long_count + 7L) / 8L));
 					if (charptr_temp2 == NULL)
 					{
@@ -2349,7 +2349,7 @@ JBI_RETURN_TYPE jbi_execute
 					*/
 					long_temp = (variable_size[variable_id] + 7L) >> 3L;
 					charptr_temp2 = (unsigned char *) variables[variable_id];
-					charptr_temp = jbi_malloc((unsigned int) long_temp);
+					charptr_temp = (unsigned char*) jbi_malloc((unsigned int) long_temp);
 					variables[variable_id] = (intptr_t) charptr_temp;
 
 						if (variables[variable_id] == 0)
@@ -2520,7 +2520,7 @@ JBI_RETURN_TYPE jbi_execute
 					*/
 					long_temp = (variable_size[variable_id] + 7L) >> 3L;
 					charptr_temp2 = (unsigned char *) variables[variable_id];
-					charptr_temp = jbi_malloc((unsigned int) long_temp);
+					charptr_temp = (unsigned char*) jbi_malloc((unsigned int) long_temp);
 					variables[variable_id] = (intptr_t) charptr_temp;
 
 						if (variables[variable_id] == 0)
@@ -2643,19 +2643,19 @@ JBI_RETURN_TYPE jbi_execute
 
 				if (long_temp != 0L)
 				{
-					status = jbi_do_wait_cycles(long_temp, (unsigned int) args[0]);
+					status = jbi_do_wait_cycles(long_temp, (JBIE_JTAG_STATE) args[0]);
 				}
 
 				long_temp = stack[--stack_ptr];
 
 				if ((status == JBIC_SUCCESS) && (long_temp != 0L))
 				{
-					status = jbi_do_wait_microseconds(long_temp, (unsigned int) args[0]);
+					status = jbi_do_wait_microseconds(long_temp, (JBIE_JTAG_STATE) args[0]);
 				}
 
 				if ((status == JBIC_SUCCESS) && (args[1] != args[0]))
 				{
-					status = jbi_goto_jtag_state((unsigned int) args[1]);
+					status = jbi_goto_jtag_state((JBIE_JTAG_STATE)args[1]);
 				}
 
 				if (version > 0)
