@@ -64,6 +64,7 @@
 
 #if PORT == WINDOWS
 #include <windows.h>
+static HANDLE com_handle = INVALID_HANDLE_VALUE;
 #else
 typedef int BOOL;
 typedef unsigned char BYTE;
@@ -156,9 +157,7 @@ BOOL verbose = FALSE;
 
 int jbi_jtag_io(int tms, int tdi, int read_tdo)
 {
-	printf("DEBUG: jbi_jtag_io called with tms=%d, tdi=%d, read_tdo=%d\n",
-		tms, tdi, read_tdo);
-	int data = 0;
+	//printf("DEBUG: jbi_jtag_io called with tms=%d, tdi=%d, read_tdo=%d\n",tms, tdi, read_tdo);
 	int tdo = 0;
 	int i = 0;
 	int result = 0;
@@ -174,10 +173,63 @@ int jbi_jtag_io(int tms, int tdi, int read_tdo)
 	{
 		ch_data = (char)
 			((tdi ? 0x01 : 0) | (tms ? 0x02 : 0) | (read_tdo ? 0x04 : 0));
-		ch_data |= '0'; //make it an ASCII character '0' to '7'
+		ch_data |= '0'; /* ASCII '0'..'7' */
 
+#if PORT == WINDOWS
+		/* write one byte to the serial port using Win32 API */
+		{
+			DWORD written = 0;
+			BOOL ok = FALSE;
+
+			if (com_handle == INVALID_HANDLE_VALUE)
+			{
+				fprintf(stderr, "Error: serial port not opened\n");
+			}
+			else
+			{
+				ok = WriteFile(com_handle, &ch_data, 1, &written, NULL);
+				if (!ok || (written != 1))
+				{
+					fprintf(stderr, "Error: WriteFile failed (err=%lu)\n", (unsigned long)GetLastError());
+				}
+			}
+		}
+
+		if (read_tdo)
+		{
+			char resp = 0;
+			DWORD readn = 0;
+			BOOL ok = FALSE;
+			int attempts = 0;
+
+			/* try a few times to read a single byte (timeout controlled by COMMTIMEOUTS) */
+			for (attempts = 0; (attempts < 100) && (readn == 0); ++attempts)
+			{
+				ok = ReadFile(com_handle, &resp, 1, &readn, NULL);
+				if (!ok)
+				{
+					/* ReadFile can fail if timeouts occur; break on fatal error */
+					DWORD err = GetLastError();
+					if (err != ERROR_IO_PENDING && err != ERROR_SUCCESS)
+					{
+						fprintf(stderr, "Error: ReadFile failed (err=%lu)\n", (unsigned long)err);
+						break;
+					}
+				}
+			}
+
+			if (readn == 1)
+			{
+				tdo = (resp == '1') ? 1 : 0;
+			}
+			else
+			{
+				fprintf(stderr, "Error: PicoBlaster not responding\n");
+			}
+		}
+#else
+		/* POSIX-style write/read (existing behaviour) */
 		write(com_port, &ch_data, 1);
-		printf("DEBUG: Sent char '%c' to com port\n", ch_data);
 
 		if (read_tdo)
 		{
@@ -187,13 +239,14 @@ int jbi_jtag_io(int tms, int tdi, int read_tdo)
 			}
 			if (result == 1)
 			{
-				tdo = (ch_data == '1')? 1 : 0;
+				tdo = (ch_data == '1') ? 1 : 0;
 			}
 			else
 			{
 				fprintf(stderr, "Error:  PicoBlaster not responding\n");
 			}
 		}
+#endif
 	}
 	else
 	{
@@ -653,6 +706,9 @@ int main(int argc, char **argv)
 	/* print out the version string and copyright message */
 	fprintf(stderr, "Jam STAPL ByteCode Player Version 2.3 (20231228)\n");
 	fprintf(stderr, "Copyright (C) 2023 Intel Corporation\n\n");
+	fprintf(stderr, "Port for 64bit systems\n");
+	fprintf(stderr, "Adapted for PicoBitBlaster JTAG programmer (on USB-serial)\n");
+	fprintf(stderr, "PF, 17.12.2025\n");
 
 	for (arg = 1; arg < argc; arg++)
 	{
@@ -752,7 +808,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "    -a<action>  : specify an action name (Jam STAPL)\n");
 		fprintf(stderr, "    -d<proc=1>  : enable optional procedure (Jam STAPL)\n");
 		fprintf(stderr, "    -d<proc=0>  : disable recommended procedure (Jam STAPL)\n");
-		fprintf(stderr, "    -s<port>    : serial port name (for PicoBlaster)\n");
+		fprintf(stderr, "    -s<port>    : serial port name (Picoblaster: 115200, 8N1, DTR/RTS)\n");
 		fprintf(stderr, "    -r          : don't reset JTAG TAP after use\n");
 		exit_status = 1;
 	}
@@ -1066,30 +1122,112 @@ int main(int argc, char **argv)
 
 void initialize_jtag_hardware()
 {
-	if (specified_com_port)
+	if (!specified_com_port)
 	{
-		com_port = open(serial_port_name, O_RDWR);
-		if (com_port == -1)
-		{
-			fprintf(stderr, "Error: can't open serial port \"%s\"\n",
-				serial_port_name);
-		}
-		else
-		{
-			fprintf(stderr, "Debug: opened %s\n",serial_port_name);
-		}
-	}
-	else {
 		fprintf(stderr, "Error: Only serial port jtag supported \n");
+		return;
 	}
+
+#if PORT == WINDOWS
+	/* Open the serial port (use CreateFileA for ANSI string) */
+	com_handle = CreateFileA(
+		serial_port_name,
+		GENERIC_READ | GENERIC_WRITE,
+		0,              /* exclusive access */
+		NULL,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL,
+		NULL);
+
+	if (com_handle == INVALID_HANDLE_VALUE)
+	{
+		fprintf(stderr, "Error: can't open serial port \"%s\" (err=%lu)\n",
+			serial_port_name, (unsigned long)GetLastError());
+		return;
+	}
+
+	/* Configure port: 115200, 8N1, DTR/RTS, raw mode */
+	DCB dcb;
+	COMMTIMEOUTS timeouts;
+
+	ZeroMemory(&dcb, sizeof(dcb));
+	dcb.DCBlength = sizeof(dcb);
+	if (!GetCommState(com_handle, &dcb))
+	{
+		fprintf(stderr, "Error: GetCommState failed (err=%lu)\n", (unsigned long)GetLastError());
+		CloseHandle(com_handle);
+		com_handle = INVALID_HANDLE_VALUE;
+		return;
+	}
+
+	dcb.BaudRate = CBR_115200;
+	dcb.ByteSize = 8;
+	dcb.Parity = NOPARITY;
+	dcb.StopBits = ONESTOPBIT;
+	dcb.fBinary = TRUE;
+	dcb.fDtrControl = DTR_CONTROL_ENABLE;
+	dcb.fRtsControl = RTS_CONTROL_ENABLE;
+	dcb.fOutxCtsFlow = FALSE;
+	dcb.fOutxDsrFlow = FALSE;
+	dcb.fInX = FALSE;
+	dcb.fOutX = FALSE;
+	dcb.fNull = FALSE;
+
+	if (!SetCommState(com_handle, &dcb))
+	{
+		fprintf(stderr, "Error: SetCommState failed (err=%lu)\n", (unsigned long)GetLastError());
+		CloseHandle(com_handle);
+		com_handle = INVALID_HANDLE_VALUE;
+		return;
+	}
+
+	/* Set timeouts: ReadFile will wait up to 100 ms for each byte (adjust as needed) */
+	ZeroMemory(&timeouts, sizeof(timeouts));
+	timeouts.ReadIntervalTimeout = 50;            /* ms */
+	timeouts.ReadTotalTimeoutConstant = 100;      /* ms */
+	timeouts.ReadTotalTimeoutMultiplier = 0;
+	timeouts.WriteTotalTimeoutConstant = 1000;
+	timeouts.WriteTotalTimeoutMultiplier = 0;
+
+	if (!SetCommTimeouts(com_handle, &timeouts))
+	{
+		fprintf(stderr, "Error: SetCommTimeouts failed (err=%lu)\n", (unsigned long)GetLastError());
+		/* not fatal: continue */
+	}
+
+	if (!PurgeComm(com_handle, PURGE_RXCLEAR | PURGE_TXCLEAR)) {
+				fprintf(stderr, "Error: PurgeComm failed (err=%lu)\n", (unsigned long)GetLastError());
+		/* not fatal: continue */
+	}
+
+	fprintf(stderr, "Debug: opened %s, com_handle = %p\n", serial_port_name, com_handle);
+#else
+	com_port = open(serial_port_name, O_RDWR);
+	if (com_port == -1)
+	{
+		fprintf(stderr, "Error: can't open serial port \"%s\"\n",
+			serial_port_name);
+	}
+	else
+	{
+		fprintf(stderr, "Debug: opened %s, com_port = %d\n", serial_port_name, com_port);
+	}
+#endif
 }
 
 void close_jtag_hardware()
 {
-	if (specified_com_port)
+	if (!specified_com_port) return;
+
+#if PORT == WINDOWS
+	if (com_handle != INVALID_HANDLE_VALUE)
 	{
-		if (com_port != -1) close(com_port);
+		CloseHandle(com_handle);
+		com_handle = INVALID_HANDLE_VALUE;
 	}
+#else
+	if (com_port != -1) close(com_port);
+#endif
 }
 
 #if !defined (DEBUG)
