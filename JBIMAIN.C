@@ -435,7 +435,7 @@ JBI_RETURN_TYPE jbi_execute
 
 						variables[i] = (intptr_t) jbi_malloc(size);
 
-						if (variables[i] == NULL)
+						if (variables[i] == 0)
 						{
 							status = JBIC_OUT_OF_MEMORY;
 						}
@@ -488,7 +488,7 @@ JBI_RETURN_TYPE jbi_execute
 
 						variables[i] = (intptr_t) jbi_malloc(size);
 
-						if (variables[i] == NULL)
+						if (variables[i] == 0)
 						{
 							status = JBIC_OUT_OF_MEMORY;
 						}
@@ -1500,10 +1500,10 @@ JBI_RETURN_TYPE jbi_execute
 					longptr_temp = (long *) jbi_malloc(count * sizeof(long));
 					variables[variable_id] = (intptr_t) longptr_temp;
 
-					if (variables[variable_id] == NULL)
-					{
-						status = JBIC_OUT_OF_MEMORY;
-						break;
+						if (variables[variable_id] == 0)
+						{
+							status = JBIC_OUT_OF_MEMORY;
+							break;
 					}
 					else
 					{
@@ -1577,10 +1577,10 @@ JBI_RETURN_TYPE jbi_execute
 					charptr_temp = jbi_malloc((unsigned int) long_temp);
 					variables[variable_id] = (intptr_t) charptr_temp;
 
-					if (variables[variable_id] == NULL)
-					{
-						status = JBIC_OUT_OF_MEMORY;
-					}
+						if (variables[variable_id] == 0)
+						{
+							status = JBIC_OUT_OF_MEMORY;
+						}
 					else
 					{
 						/* zero the buffer */
@@ -2131,12 +2131,12 @@ JBI_RETURN_TYPE jbi_execute
 					/*
 					*	If the buffer was previously allocated, free it
 					*/
-					if ((attributes[variable_id] & 0x80) &&
-						(variables[variable_id] != NULL))
-					{
-						jbi_free((void *) variables[variable_id]);
-						variables[variable_id] = NULL;
-					}
+						if ((attributes[variable_id] & 0x80) &&
+							(variables[variable_id] != 0))
+						{
+							jbi_free((void *) variables[variable_id]);
+							variables[variable_id] = 0;
+						}
 
 					/*
 					*	Allocate a new buffer of the requested size
@@ -2144,10 +2144,10 @@ JBI_RETURN_TYPE jbi_execute
 					variables[variable_id] = (intptr_t)
 						jbi_malloc((unsigned int) long_temp);
 
-					if (variables[variable_id] == NULL)
-					{
-						status = JBIC_OUT_OF_MEMORY;
-					}
+						if (variables[variable_id] == 0)
+						{
+							status = JBIC_OUT_OF_MEMORY;
+						}
 					else
 					{
 						/*
@@ -2358,10 +2358,10 @@ JBI_RETURN_TYPE jbi_execute
 					charptr_temp = jbi_malloc((unsigned int) long_temp);
 					variables[variable_id] = (intptr_t) charptr_temp;
 
-					if (variables[variable_id] == NULL)
-					{
-						status = JBIC_OUT_OF_MEMORY;
-						break;
+						if (variables[variable_id] == 0)
+						{
+							status = JBIC_OUT_OF_MEMORY;
+							break;
 					}
 					else
 					{
@@ -2529,10 +2529,10 @@ JBI_RETURN_TYPE jbi_execute
 					charptr_temp = jbi_malloc((unsigned int) long_temp);
 					variables[variable_id] = (intptr_t) charptr_temp;
 
-					if (variables[variable_id] == NULL)
-					{
-						status = JBIC_OUT_OF_MEMORY;
-						break;
+						if (variables[variable_id] == 0)
+						{
+							status = JBIC_OUT_OF_MEMORY;
+							break;
 					}
 					else
 					{
@@ -2824,9 +2824,9 @@ JBI_RETURN_TYPE jbi_execute
 	{
 		for (i = 0; i < (unsigned int) symbol_count; ++i)
 		{
-			if ((attributes[i] & 0x80) && (variables[i] != NULL))
-			{
-				jbi_free((void *) variables[i]);
+				if ((attributes[i] & 0x80) && (variables[i] != 0))
+				{
+					jbi_free((void *) variables[i]);
 			}
 		}
 	}
