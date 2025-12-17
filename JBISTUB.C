@@ -43,6 +43,12 @@
 /*                                                                           */
 /*****************************************************************************/
 
+#if defined(_MSC_VER)
+#define _CRT_SECURE_NO_WARNINGS
+#define _CRT_NONSTDC_NO_DEPRECATE
+#pragma warning(disable:4244 4267 4334 4456 4996)
+#endif
+
 #ifndef NO_ALTERA_STDIO
 #define NO_ALTERA_STDIO
 #endif
@@ -2049,7 +2055,9 @@ void flush_ports(void)
 #endif /* PORT == WINDOWS || PORT == DOS */
 
 #if !defined (DEBUG)
+#if !defined(_MSC_VER)
 #pragma optimize ("ceglt", off)
+#endif
 #endif
 
 void delay_loop(long count)

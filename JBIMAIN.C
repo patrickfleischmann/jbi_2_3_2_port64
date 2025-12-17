@@ -28,6 +28,12 @@
 /*                                                                           */
 /*****************************************************************************/
 
+#if defined(_MSC_VER)
+#define _CRT_SECURE_NO_WARNINGS
+#define _CRT_NONSTDC_NO_DEPRECATE
+#pragma warning(disable:4244 4267 4334 4456 4996)
+#endif
+
 #include "jbiport.h"
 #include "jbiexprt.h"
 #include "jbijtag.h"
@@ -41,7 +47,9 @@
 /*																			*/
 /****************************************************************************/
 
+#ifndef NULL
 #define NULL 0
+#endif
 
 #define JBI_STACK_SIZE 128
 
