@@ -50,17 +50,6 @@
 #pragma warning(disable:4244 4267 4334 4456 4996)
 #endif
 
-#ifndef NO_ALTERA_STDIO
-#define NO_ALTERA_STDIO
-#endif
-
-#if ( _MSC_VER >= 800 )
-#pragma warning(disable:4115)
-#pragma warning(disable:4201)
-#pragma warning(disable:4214)
-#pragma warning(disable:4514)
-#endif
-
 #include "jbiport.h"
 
 #if PORT == WINDOWS
@@ -156,8 +145,6 @@ int jbi_jtag_io(int tms, int tdi, int read_tdo)
 {
 	//printf("DEBUG: jbi_jtag_io called with tms=%d, tdi=%d, read_tdo=%d\n",tms, tdi, read_tdo);
 	int tdo = 0;
-	int i = 0;
-	int result = 0;
 	char ch_data = 0;
 
 	if (!jtag_hardware_initialized)
@@ -251,6 +238,116 @@ int jbi_jtag_io(int tms, int tdi, int read_tdo)
 	}
 
 	return (tdo);
+}
+
+void initialize_jtag_hardware()
+{
+	if (!specified_com_port)
+	{
+		fprintf(stderr, "Error: Only serial port jtag supported \n");
+		return;
+	}
+
+#if PORT == WINDOWS
+	/* Open the serial port (use CreateFileA for ANSI string) */
+	com_handle = CreateFileA(
+		serial_port_name,
+		GENERIC_READ | GENERIC_WRITE,
+		0,              /* exclusive access */
+		NULL,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL,
+		NULL);
+
+	if (com_handle == INVALID_HANDLE_VALUE)
+	{
+		fprintf(stderr, "Error: can't open serial port \"%s\" (err=%lu)\n",
+			serial_port_name, (unsigned long)GetLastError());
+		return;
+	}
+
+	/* Configure port: 230400, 8N1, DTR/RTS, raw mode */
+	DCB dcb;
+	COMMTIMEOUTS timeouts;
+
+	ZeroMemory(&dcb, sizeof(dcb));
+	dcb.DCBlength = sizeof(dcb);
+	if (!GetCommState(com_handle, &dcb))
+	{
+		fprintf(stderr, "Error: GetCommState failed (err=%lu)\n", (unsigned long)GetLastError());
+		CloseHandle(com_handle);
+		com_handle = INVALID_HANDLE_VALUE;
+		return;
+	}
+
+	dcb.BaudRate = 230400;
+	dcb.ByteSize = 8;
+	dcb.Parity = NOPARITY;
+	dcb.StopBits = ONESTOPBIT;
+	dcb.fBinary = TRUE;
+	dcb.fDtrControl = DTR_CONTROL_ENABLE;
+	dcb.fRtsControl = RTS_CONTROL_ENABLE;
+	dcb.fOutxCtsFlow = FALSE;
+	dcb.fOutxDsrFlow = FALSE;
+	dcb.fInX = FALSE;
+	dcb.fOutX = FALSE;
+	dcb.fNull = FALSE;
+
+	if (!SetCommState(com_handle, &dcb))
+	{
+		fprintf(stderr, "Error: SetCommState failed (err=%lu)\n", (unsigned long)GetLastError());
+		CloseHandle(com_handle);
+		com_handle = INVALID_HANDLE_VALUE;
+		return;
+	}
+
+	/* Set timeouts: ReadFile will wait up to 100 ms for each byte (adjust as needed) */
+	ZeroMemory(&timeouts, sizeof(timeouts));
+	timeouts.ReadIntervalTimeout = 50;            /* ms */
+	timeouts.ReadTotalTimeoutConstant = 100;      /* ms */
+	timeouts.ReadTotalTimeoutMultiplier = 0;
+	timeouts.WriteTotalTimeoutConstant = 1000;
+	timeouts.WriteTotalTimeoutMultiplier = 0;
+
+	if (!SetCommTimeouts(com_handle, &timeouts))
+	{
+		fprintf(stderr, "Error: SetCommTimeouts failed (err=%lu)\n", (unsigned long)GetLastError());
+		/* not fatal: continue */
+	}
+
+	if (!PurgeComm(com_handle, PURGE_RXCLEAR | PURGE_TXCLEAR)) {
+		fprintf(stderr, "Error: PurgeComm failed (err=%lu)\n", (unsigned long)GetLastError());
+		/* not fatal: continue */
+	}
+
+	fprintf(stderr, "Debug: opened %s, com_handle = %p\n", serial_port_name, com_handle);
+#else
+	com_port = open(serial_port_name, O_RDWR);
+	if (com_port == -1)
+	{
+		fprintf(stderr, "Error: can't open serial port \"%s\"\n",
+			serial_port_name);
+	}
+	else
+	{
+		fprintf(stderr, "Debug: opened %s, com_port = %d\n", serial_port_name, com_port);
+	}
+#endif
+}
+
+void close_jtag_hardware()
+{
+	if (!specified_com_port) return;
+
+#if PORT == WINDOWS
+	if (com_handle != INVALID_HANDLE_VALUE)
+	{
+		CloseHandle(com_handle);
+		com_handle = INVALID_HANDLE_VALUE;
+	}
+#else
+	if (com_port != -1) close(com_port);
+#endif
 }
 
 void jbi_message(char *message_text)
@@ -1083,116 +1180,6 @@ int main(int argc, char **argv)
 #endif /* MEM_TRACKER */
 
 	return (exit_status);
-}
-
-void initialize_jtag_hardware()
-{
-	if (!specified_com_port)
-	{
-		fprintf(stderr, "Error: Only serial port jtag supported \n");
-		return;
-	}
-
-#if PORT == WINDOWS
-	/* Open the serial port (use CreateFileA for ANSI string) */
-	com_handle = CreateFileA(
-		serial_port_name,
-		GENERIC_READ | GENERIC_WRITE,
-		0,              /* exclusive access */
-		NULL,
-		OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL,
-		NULL);
-
-	if (com_handle == INVALID_HANDLE_VALUE)
-	{
-		fprintf(stderr, "Error: can't open serial port \"%s\" (err=%lu)\n",
-			serial_port_name, (unsigned long)GetLastError());
-		return;
-	}
-
-	/* Configure port: 230400, 8N1, DTR/RTS, raw mode */
-	DCB dcb;
-	COMMTIMEOUTS timeouts;
-
-	ZeroMemory(&dcb, sizeof(dcb));
-	dcb.DCBlength = sizeof(dcb);
-	if (!GetCommState(com_handle, &dcb))
-	{
-		fprintf(stderr, "Error: GetCommState failed (err=%lu)\n", (unsigned long)GetLastError());
-		CloseHandle(com_handle);
-		com_handle = INVALID_HANDLE_VALUE;
-		return;
-	}
-
-	dcb.BaudRate = 230400;
-	dcb.ByteSize = 8;
-	dcb.Parity = NOPARITY;
-	dcb.StopBits = ONESTOPBIT;
-	dcb.fBinary = TRUE;
-	dcb.fDtrControl = DTR_CONTROL_ENABLE;
-	dcb.fRtsControl = RTS_CONTROL_ENABLE;
-	dcb.fOutxCtsFlow = FALSE;
-	dcb.fOutxDsrFlow = FALSE;
-	dcb.fInX = FALSE;
-	dcb.fOutX = FALSE;
-	dcb.fNull = FALSE;
-
-	if (!SetCommState(com_handle, &dcb))
-	{
-		fprintf(stderr, "Error: SetCommState failed (err=%lu)\n", (unsigned long)GetLastError());
-		CloseHandle(com_handle);
-		com_handle = INVALID_HANDLE_VALUE;
-		return;
-	}
-
-	/* Set timeouts: ReadFile will wait up to 100 ms for each byte (adjust as needed) */
-	ZeroMemory(&timeouts, sizeof(timeouts));
-	timeouts.ReadIntervalTimeout = 50;            /* ms */
-	timeouts.ReadTotalTimeoutConstant = 100;      /* ms */
-	timeouts.ReadTotalTimeoutMultiplier = 0;
-	timeouts.WriteTotalTimeoutConstant = 1000;
-	timeouts.WriteTotalTimeoutMultiplier = 0;
-
-	if (!SetCommTimeouts(com_handle, &timeouts))
-	{
-		fprintf(stderr, "Error: SetCommTimeouts failed (err=%lu)\n", (unsigned long)GetLastError());
-		/* not fatal: continue */
-	}
-
-	if (!PurgeComm(com_handle, PURGE_RXCLEAR | PURGE_TXCLEAR)) {
-				fprintf(stderr, "Error: PurgeComm failed (err=%lu)\n", (unsigned long)GetLastError());
-		/* not fatal: continue */
-	}
-
-	fprintf(stderr, "Debug: opened %s, com_handle = %p\n", serial_port_name, com_handle);
-#else
-	com_port = open(serial_port_name, O_RDWR);
-	if (com_port == -1)
-	{
-		fprintf(stderr, "Error: can't open serial port \"%s\"\n",
-			serial_port_name);
-	}
-	else
-	{
-		fprintf(stderr, "Debug: opened %s, com_port = %d\n", serial_port_name, com_port);
-	}
-#endif
-}
-
-void close_jtag_hardware()
-{
-	if (!specified_com_port) return;
-
-#if PORT == WINDOWS
-	if (com_handle != INVALID_HANDLE_VALUE)
-	{
-		CloseHandle(com_handle);
-		com_handle = INVALID_HANDLE_VALUE;
-	}
-#else
-	if (com_port != -1) close(com_port);
-#endif
 }
 
 #if !defined (DEBUG)
