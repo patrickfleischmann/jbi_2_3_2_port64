@@ -7,7 +7,7 @@ Supported JTAG hardware: PicoBitBlaster
 Original Docs: readme.txt and Altera AN 425 Using the Command-Line Jam STAPL Solution for Device Programming.pdf
 
 ### Help message
-`
+```
 .\jbi.exe -h
 
 Jam STAPL ByteCode Player Version 2.3 (20231228)
@@ -28,10 +28,10 @@ Available options:
     -s<port>    : serial port name (Picoblaster: 230400, 8N1, DTR/RTS)
     -r          : don't reset JTAG TAP after use
 PS C:\home\projekte\c\jbi_2_3_2_port64>
-`
+```
 
 ### Program
-`
+```
 .\jbi.exe -aPROGRAM -ddo_bypass_ufm=1 -sCOM5 .\test\top2.jbc
 
 Jam STAPL ByteCode Player Version 2.3 (20231228)
@@ -49,9 +49,9 @@ programming CFM block...
 verifying CFM block...
 DONE
 Exit code = 0... Success
-`
+```
 ### Get File Info
-`
+```
 .\jbi.exe -i .\test\top2.jbc
 
 Jam STAPL ByteCode Player Version 2.3 (20231228)
@@ -115,4 +115,4 @@ ERASE
     DO_DISABLE_MAXII_PRESET_BSR (optional)
 READ_USERCODE
 CHECK_IDCODE
-`
+```
