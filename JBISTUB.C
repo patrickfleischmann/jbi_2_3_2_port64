@@ -43,6 +43,7 @@
 /*                                                                           */
 /*****************************************************************************/
 //Removed dos port support for this version
+//Implemented only Windows port support, only PicoBitBlaster support on serial port
 
 #if defined(_MSC_VER)
 #define _CRT_SECURE_NO_WARNINGS
