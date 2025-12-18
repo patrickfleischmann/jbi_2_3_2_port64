@@ -42,6 +42,7 @@
 /*                       fixed /W4 warnings                                  */
 /*                                                                           */
 /*****************************************************************************/
+//Removed dos port support for this version
 
 #if defined(_MSC_VER)
 #define _CRT_SECURE_NO_WARNINGS
@@ -102,11 +103,7 @@ typedef unsigned long DWORD;
 */
 
 /* file buffer for Jam STAPL ByteCode input file */
-#if PORT == DOS
-unsigned char **file_buffer = NULL;
-#else
 unsigned char *file_buffer = NULL;
-#endif
 long file_pointer = 0L;
 long file_length = 0L;
 
@@ -575,7 +572,6 @@ void jbi_free(void *ptr)
 *
 *	get_tick_count() -- Get system tick count in milliseconds
 *
-*	for DOS, use BIOS function _bios_timeofday()
 *	for WINDOWS use GetTickCount() function
 *	for UNIX use clock() system function
 */
@@ -585,9 +581,6 @@ DWORD get_tick_count(void)
 
 #if PORT == WINDOWS
 	tick_count = GetTickCount();
-#elif PORT == DOS
-	_bios_timeofday(_TIME_GETCLOCK, (long *)&tick_count);
-	tick_count *= 55L;	/* convert to milliseconds */
 #else
 	/* assume clock() function returns microseconds */
 	tick_count = (DWORD) (clock() / 1000L);
@@ -608,7 +601,7 @@ void calibrate_delay(void)
 
 	one_ms_delay = 0L;
 
-#if PORT == WINDOWS || PORT == DOS
+#if PORT == WINDOWS
 	for (sample = 0; sample < DELAY_SAMPLES; ++sample)
 	{
 		count = 0;
@@ -808,7 +801,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "    -a<action>  : specify an action name (Jam STAPL)\n");
 		fprintf(stderr, "    -d<proc=1>  : enable optional procedure (Jam STAPL)\n");
 		fprintf(stderr, "    -d<proc=0>  : disable recommended procedure (Jam STAPL)\n");
-		fprintf(stderr, "    -s<port>    : serial port name (Picoblaster: 115200, 8N1, DTR/RTS)\n");
+		fprintf(stderr, "    -s<port>    : serial port name (Picoblaster: 230400, 8N1, DTR/RTS)\n");
 		fprintf(stderr, "    -r          : don't reset JTAG TAP after use\n");
 		exit_status = 1;
 	}
@@ -839,26 +832,7 @@ int main(int argc, char **argv)
 			/*
 			*	Read entire file into a buffer
 			*/
-#if PORT == DOS
-			int pages = 1 + (int) (file_length >> 14L);
-			int page;
-			file_buffer = (unsigned char **) jbi_malloc(
-				(size_t) (pages * sizeof(char *)));
-
-			for (page = 0; page < pages; ++page)
-			{
-				/* allocate enough 16K blocks to store the file */
-				file_buffer[page] = (unsigned char *) jbi_malloc (0x4000);
-				if (file_buffer[page] == NULL)
-				{
-					/* flag error and break out of loop */
-					file_buffer = NULL;
-					page = pages;
-				}
-			}
-#else
 			file_buffer = (unsigned char *) jbi_malloc((size_t) file_length);
-#endif
 
 			if (file_buffer == NULL)
 			{
@@ -963,11 +937,6 @@ int main(int argc, char **argv)
 							printf("%s \"%s\"\n", action_name, description);
 						}
 
-#if PORT == DOS
-						if (action_name != NULL) jbi_free(action_name);
-						if (description != NULL) jbi_free(description);
-#endif
-
 						procptr = procedure_list;
 						while (procptr != NULL)
 						{
@@ -977,10 +946,6 @@ int main(int argc, char **argv)
 									(procptr->attributes == 1) ?
 									"optional" : "recommended");
 							}
-
-#if PORT == DOS
-							if (procptr->name != NULL) jbi_free(procptr->name);
-#endif
 
 							procedure_list = procptr->next;
 							jbi_free(procptr);
@@ -1146,7 +1111,7 @@ void initialize_jtag_hardware()
 		return;
 	}
 
-	/* Configure port: 115200, 8N1, DTR/RTS, raw mode */
+	/* Configure port: 230400, 8N1, DTR/RTS, raw mode */
 	DCB dcb;
 	COMMTIMEOUTS timeouts;
 
@@ -1160,7 +1125,7 @@ void initialize_jtag_hardware()
 		return;
 	}
 
-	dcb.BaudRate = CBR_115200;
+	dcb.BaudRate = 230400;
 	dcb.ByteSize = 8;
 	dcb.Parity = NOPARITY;
 	dcb.StopBits = ONESTOPBIT;

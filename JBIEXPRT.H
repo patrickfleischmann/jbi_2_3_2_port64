@@ -71,21 +71,11 @@
 /****************************************************************************/
 
 /*
-*	For DOS port, program data is stored in a set of 16K pages, accessed
-*	through a pointer table.  For 32-bit version, the buffer is continuous.
+*   Program buffer is continuous.
 *	The macro GET_BYTE gets a single byte for either case.
 */
-#if PORT==DOS
-#define PROGRAM_PTR unsigned char **
-#else
 #define PROGRAM_PTR unsigned char *
-#endif
-
-#if PORT==DOS
-#define GET_BYTE(x) (jbi_program[(x) >> 14L][(x) & 0x3fffL])
-#else
 #define GET_BYTE(x) (program[x])
-#endif
 
 #define GET_WORD(x) \
 	(((((unsigned short) GET_BYTE(x)) << 8) & 0xFF00) | \
@@ -116,10 +106,6 @@ JBI_PROCINFO;
 /*	Global Data Prototypes													*/
 /*																			*/
 /****************************************************************************/
-
-#if PORT==DOS
-extern unsigned char jbi_aca_out_buffer[8192 + 1024];
-#endif
 
 extern PROGRAM_PTR jbi_program;
 
